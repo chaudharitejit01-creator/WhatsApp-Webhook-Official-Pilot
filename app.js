@@ -1,24 +1,20 @@
-const express = require('express');
-const { port, verifyToken } = require('./src/config');
-const { createWebhookController } = require('./src/webhook.controller');
-const { createWebhookRouter } = require('./src/webhook.routes');
-const { verifyWebhookSubscription } = require('./src/meta-api.service');
+const { loadConfig } = require('./src/config');
+const { createApplicationAsync } = require('./src/app');
 
-const app = express();
+async function start() {
+  const config = loadConfig();
+  const { app } = await createApplicationAsync({ config });
 
-app.use(express.json());
+  return app.listen(config.port, () => {
+    console.log(`\nListening on port ${config.port}\n`);
+  });
+}
 
-const webhookController = createWebhookController({
-  verifyToken,
-  verifyWebhookSubscription,
-});
+if (require.main === module) {
+  start().catch((error) => {
+    console.error('Application startup failed:', error.message);
+    process.exitCode = 1;
+  });
+}
 
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', service: 'DSACRM-Sales-AI' });
-});
-
-app.use('/', createWebhookRouter(webhookController));
-
-app.listen(port, () => {
-  console.log(`\nListening on port ${port}\n`);
-});
+module.exports = { start };
